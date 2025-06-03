@@ -1,37 +1,29 @@
 # Prediction interface for Cog ⚙️
 # https://cog.run/python
 """
-Merge up to five images into one horizontal or vertical strip.
+Merge an arbitrary list of images into a single horizontal or vertical strip.
 
-• Drop-in defaults — upload a single picture, hit Run, and get the same image back
-  (optionally ring-fenced by a border).
-• Multi-image — upload 2-5 images to create a strip with alignment, size
-  harmonisation and border control.
+• Zero-config — upload one image, hit Run, get it back (optionally bordered).
+• Multi-image — upload 2+ images and control alignment, resize, and borders.
 • Export — PNG (lossless), JPG/JPEG (quality), WebP (lossless at Q 100 or lossy).
 """
 
-from __future__ import annotations
-
 import tempfile
-from typing import List, Optional
+from typing import List
 
 from cog import BasePredictor, Input, Path
 from PIL import Image, ImageColor
 
 
 class Predictor(BasePredictor):
-    """Stitch 1-5 images into a single strip."""
+    """Stitch one or more images into a strip."""
 
     # ------------------------------------------------------------------ #
     # 🔮 predict                                                          #
     # ------------------------------------------------------------------ #
-    def predict(  # noqa: PLR0913 - user-facing API needs several knobs
+    def predict(  # noqa: PLR0913 – user-facing API needs several knobs
         self,
-        image1: Path = Input(description="First image (required)"),
-        image2: Optional[Path] = Input(description="Second image (optional)", default=None),
-        image3: Optional[Path] = Input(description="Third image (optional)", default=None),
-        image4: Optional[Path] = Input(description="Fourth image (optional)", default=None),
-        image5: Optional[Path] = Input(description="Fifth image (optional)", default=None),
+        images: List[Path] = Input(description="Images to merge (order preserved)"),
         orientation: str = Input(
             description="Direction of the strip",
             choices=["horizontal", "vertical"],
@@ -70,28 +62,28 @@ class Predictor(BasePredictor):
             default=90,
         ),
     ) -> Path:
-        """Merge images and return the resulting file path."""
-        # Gather all supplied images -------------------------------------
-        images = [img for img in (image1, image2, image3, image4, image5) if img is not None]
+        """Merge *images* and return the resulting file path."""
+        if not images:
+            raise ValueError("`images` must contain at least one file")
 
-        # 1️⃣ load --------------------------------------------------------
+        # 1️⃣ load
         pics = [Image.open(p).convert("RGBA") for p in images]
 
-        # 2️⃣ harmonise sizes --------------------------------------------
+        # 2️⃣ harmonise sizes
         pics = self._harmonise(pics, orientation, resize_strategy, keep_aspect_ratio)
 
-        # 3️⃣ canvas size -------------------------------------------------
+        # 3️⃣ canvas size
         inner = border_thickness
         if orientation == "horizontal":
             cw = sum(im.width for im in pics) + inner * (len(pics) + 1)
             ch = max(im.height for im in pics) + inner * 2
-        else:  # vertical
+        else:
             cw = max(im.width for im in pics) + inner * 2
             ch = sum(im.height for im in pics) + inner * (len(pics) + 1)
 
         canvas = Image.new("RGBA", (cw, ch), ImageColor.getcolor(border_color, "RGBA"))
 
-        # 4️⃣ paste -------------------------------------------------------
+        # 4️⃣ paste
         ox, oy = inner, inner
         for im in pics:
             if orientation == "horizontal":
@@ -103,7 +95,7 @@ class Predictor(BasePredictor):
                 canvas.paste(im, (x, oy), mask=im)
                 oy += im.height + inner
 
-        # 5️⃣ export ------------------------------------------------------
+        # 5️⃣ export
         ext = output_format.lower()
         if ext == "jpeg":
             ext = "jpg"
@@ -119,7 +111,7 @@ class Predictor(BasePredictor):
 
         final.save(outfile, **save_params)
         print(
-            f"[+] {len(pics)} image(s) → {final.width}×{final.height} "
+            f"[+] Merged {len(pics)} image(s) → {final.width}×{final.height} "
             f"{ext.upper()} (Q={output_quality})"
         )
         return outfile
@@ -144,7 +136,7 @@ class Predictor(BasePredictor):
         strategy: str,
         keep_ar: bool,
     ) -> List[Image.Image]:
-        """Resize/crop so each image shares size along *orientation* axis."""
+        """Resize/crop so every image shares size along *orientation* axis."""
         if len(images) == 1 or strategy == "none":
             return images
 
@@ -177,20 +169,20 @@ class Predictor(BasePredictor):
     @staticmethod
     def _resize_axis(im: Image.Image, ax: int, target: int, keep_ar: bool) -> Image.Image:
         w, h = im.size
-        if ax == 0:  # adjust width
+        if ax == 0:  # width
             h = round(h * target / w) if keep_ar else h
             w = target
-        else:  # adjust height
+        else:  # height
             w = round(w * target / h) if keep_ar else w
             h = target
         return im.resize((w, h), Image.LANCZOS)
 
     @staticmethod
     def _crop_axis(im: Image.Image, ax: int, target: int, _: bool) -> Image.Image:
-        if ax == 0:  # crop width
+        if ax == 0:
             left = (im.width - target) // 2
             box = (left, 0, left + target, im.height)
-        else:  # crop height
+        else:
             top = (im.height - target) // 2
             box = (0, top, im.width, top + target)
         return im.crop(box)
