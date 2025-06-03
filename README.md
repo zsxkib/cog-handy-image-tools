@@ -1,138 +1,115 @@
-# Cog Template Repository
+# Image Strip Merger 🖼️
 
-This is a template repository for creating [Cog](https://github.com/replicate/cog) models that efficiently handle model weights with proper caching. It includes tools to upload model weights to Google Cloud Storage and generate download code for your `predict.py` file.
+A practical tool for combining multiple images into clean horizontal or vertical strips. Perfect for creating before/after comparisons, image galleries, or social media collages.
 
-[![Replicate](https://replicate.com/zsxkib/model-name/badge)](https://replicate.com/zsxkib/model-name)
+## Quick start
 
-## Getting Started
-
-To use this template for your own model:
-
-1. Clone this repository
-2. Modify `predict.py` with your model's implementation
-3. Update `cog.yaml` with your model's dependencies
-4. Use `cache_manager.py` to upload and manage model weights
-
-## Repository Structure
-
-- `predict.py`: The main model implementation file 
-- `cache_manager.py`: Script for uploading model weights to GCS and generating download code
-- `cog.yaml`: Cog configuration file that defines your model's environment
-
-## Managing Model Weights with cache_manager.py
-
-A key feature of this template is the `cache_manager.py` script, which helps you:
-
-1. Upload model weights to Google Cloud Storage (GCS)
-2. Generate code for downloading those weights in your `predict.py`
-3. Handle both individual files and directories efficiently
-
-### Prerequisites for Using cache_manager.py
-
-- Google Cloud SDK installed and configured (`gcloud` command)
-- Permission to upload to the specified GCS bucket (default: `gs://replicate-weights/`)
-- `tar` command available in your PATH
-
-### Basic Usage
+Clone this repository and run a prediction:
 
 ```bash
-python cache_manager.py --model-name your-model-name --local-dirs model_cache
+git clone https://github.com/zsxkib/cog-handy-image-tools.git
+cd cog-handy-image-tools
 ```
 
-This will:
-1. Find files and directories in the `model_cache` directory
-2. Create tar archives of each directory
-3. Upload both individual files and tar archives to GCS
-4. Generate code snippets for downloading the weights in your `predict.py`
+### Basic example
 
-### Advanced Usage
+Merge two images horizontally:
 
 ```bash
-python cache_manager.py \
-    --model-name your-model-name \
-    --local-dirs model_cache weights \
-    --gcs-base-path gs://replicate-weights/ \
-    --cdn-base-url https://weights.replicate.delivery/default/ \
-    --keep-tars
+cog predict \
+  -i 'images=["https://replicate.delivery/pbxt/N7iomkdKPMydXErUUHqC1AC0KNoucPaUimMEJW5NroJAUpl7/beast.jpg","https://replicate.delivery/pbxt/N7iomMkoAdSUO7MUDky8R3rfxjmSUu0iumxwkewCsA4as3v0/shadowmere.jpg"]'
 ```
 
-#### Parameters
+### Full example with all options
 
-- `--model-name`: Required. The name of your model (used in paths)
-- `--local-dirs`: Required. One or more local directories to process
-- `--gcs-base-path`: Optional. Base Google Cloud Storage path
-- `--cdn-base-url`: Optional. Base CDN URL
-- `--keep-tars`: Optional. Keep the generated .tar files locally after upload
+```bash
+cog predict \
+  -i 'images=["https://replicate.delivery/pbxt/N7iomkdKPMydXErUUHqC1AC0KNoucPaUimMEJW5NroJAUpl7/beast.jpg","https://replicate.delivery/pbxt/N7iomMkoAdSUO7MUDky8R3rfxjmSUu0iumxwkewCsA4as3v0/shadowmere.jpg"]' \
+  -i 'alignment="center"' \
+  -i 'orientation="horizontal"' \
+  -i 'border_color="#ffffff"' \
+  -i 'output_format="webp"' \
+  -i 'output_quality=90' \
+  -i 'resize_strategy="reduce_larger"' \
+  -i 'border_thickness=0' \
+  -i 'keep_aspect_ratio=true'
+```
 
-## Workflow Example
+You can also use local files by prefixing with `@`:
 
-1. **Develop your model locally**:
-   ```bash
-   # Run your model once to download weights to model_cache
-   cog predict -i prompt="test"
-   ```
+```bash
+cog predict -i 'images=["@image1.jpg","@image2.png","@image3.webp"]'
+```
 
-2. **Upload model weights**:
-   ```bash
-   python cache_manager.py --model-name your-model-name --local-dirs model_cache
-   ```
+## What it does
 
-3. **Copy the generated code snippet** into your `predict.py`
+Upload 2 or more images and this tool will:
 
-4. **Test that the model can download weights**:
-   ```bash
-   rm -rf model_cache
-   cog predict -i prompt="test"
-   ```
+- **Merge them into strips** - Horizontal or vertical layouts
+- **Smart resizing** - Automatically harmonize image sizes with multiple strategies  
+- **Precise alignment** - Control how images align within the strip (start, center, end)
+- **Border control** - Add consistent borders around and between images
+- **Format flexibility** - Export as WebP, PNG, or JPEG with quality control
 
-## Example Implementation
+## Parameters
 
-The template comes with a sample Stable Diffusion implementation in `predict.py` that demonstrates:
+- **`images`** - List of image URLs or local file paths (required)
+- **`orientation`** - `"horizontal"` or `"vertical"` (default: `"horizontal"`)
+- **`alignment`** - `"start"`, `"center"`, or `"end"` (default: `"center"`)
+- **`resize_strategy`** - How to handle different image sizes:
+  - `"none"` - Keep original sizes
+  - `"magnify_smaller"` - Scale smaller images up to match largest
+  - `"reduce_larger"` - Scale larger images down to match smallest (default)
+  - `"crop_larger"` - Crop larger images to match smallest
+- **`keep_aspect_ratio`** - Maintain aspect ratio when resizing (default: `true`)
+- **`border_thickness`** - Border width in pixels (default: `0`)
+- **`border_color`** - Hex color or CSS color name (default: `"#ffffff"`)
+- **`output_format`** - `"webp"`, `"jpg"`, `"jpeg"`, or `"png"` (default: `"webp"`)
+- **`output_quality`** - Quality for lossy formats, 1-100 (default: `90`)
 
-- Setting up the model cache directory
-- Downloading weights from GCS with progress reporting
-- Setting environment variables for model caching
-- Random seed generation for reproducibility
-- Output format and quality options
+## Use cases
 
-## Best Practices
+- **Before/after comparisons** - Show transformations side by side
+- **Product showcases** - Display multiple angles or variations
+- **Social media content** - Create Instagram-style multi-image posts
+- **Documentation** - Combine screenshots or diagrams
+- **Art portfolios** - Display multiple works in one frame
 
-- **Environment Variables**: Set cache-related environment variables early
-  ```python
-  os.environ["HF_HOME"] = MODEL_CACHE
-  os.environ["TORCH_HOME"] = MODEL_CACHE
-  # etc.
-  ```
+## How it works
 
-- **Seed Management**: Provide a seed parameter and implement random seed generation
-  ```python
-  if seed is None:
-      seed = int.from_bytes(os.urandom(2), "big")
-  print(f"Using seed: {seed}")
-  ```
+The tool automatically handles the tricky parts of image merging:
 
-- **Output Formats**: Support multiple output formats (webp, jpg, png) with quality controls
-  ```python
-  output_format: str = Input(
-      description="Format of the output image",
-      choices=["webp", "jpg", "png"],
-      default="webp"
-  )
-  output_quality: int = Input(
-      description="The image compression quality...",
-      ge=1, le=100, default=80
-  )
-  ```
+1. **Size harmonization** - When images have different dimensions, you can choose to magnify smaller images, reduce larger ones, crop them, or keep original sizes
+
+2. **Smart alignment** - Images align perfectly whether you want them at the start, center, or end of the strip
+
+3. **Border consistency** - Borders are applied uniformly around the entire strip and between individual images
+
+## Tips for best results
+
+- **Similar aspect ratios** work best for clean strips
+- **High resolution images** will give you crisp output
+- **WebP format** provides the best balance of quality and file size
+- **Horizontal strips** work great for before/after shots
+- **Vertical strips** are perfect for mobile-friendly content
+
+## Technical details
+
+Built with:
+- **PIL (Python Imaging Library)** for robust image processing
+- **Cog** for easy deployment and API access
+- **Smart memory management** for handling large image sets
+
+The tool preserves image quality while optimizing file sizes, and handles transparency properly when working with PNG images.
 
 ## Deploying to Replicate
 
-After setting up your model, you can push it to [Replicate](https://replicate.com):
+You can push this model to Replicate:
 
-1. Create a new model on Replicate
-2. Push your model:
-   ```bash
-   cog push r8.im/username/model-name
-   ```
+```bash
+cog login
+cog push r8.im/your-username/your-model-name
+```
 
 ## License
 
@@ -140,8 +117,4 @@ MIT
 
 ---
 
----
-
-⭐ Star this on [GitHub](https://github.com/zsxkib/model-name)!
-
-👋 Follow `zsxkib` on [Twitter/X](https://twitter.com/zsakib_)
+Made by [zsxkib](https://x.com/zsakib_) • Follow for more AI tools 🚀
