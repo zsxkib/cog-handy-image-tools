@@ -1,4 +1,4 @@
-torch
-diffusers
-transformers
-accelerate
+# This is a normal Python requirements.txt file.
+
+# Dependencies for image merging prediction
+Pillow>=9.0.0
